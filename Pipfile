@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 "discord.py" = "2.2.3"
+psycopg2 = "2.9.6"
 
 [dev-packages]
 pylint = "*"

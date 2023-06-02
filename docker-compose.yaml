@@ -1,0 +1,32 @@
+# run the bot locally, and be cool :sunglasses:
+version: "3"
+
+services:
+
+  paps-bot:
+    container_name: paps-bot
+    restart: unless-stopped
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: superuser
+      DB_PASSWORD: complicated
+      DB_NAME: paps-bot
+    env_file:
+      - dev.env
+
+  postgres:
+    container_name: postgres
+    image: postgres:15.3
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:5432:5432
+    environment:
+      POSTGRES_USER: superuser
+      POSTGRES_PASSWORD: complicated
+      POSTGRES_DB: paps-bot
