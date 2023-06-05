@@ -1,32 +1,72 @@
 """
 Discord bot for coordinating pen-and-paper-shenanigans
 """
-import os
-import sys
+import random
+import psycopg2
 import discord
+from discord.ext import commands
+from paps_bot.database import create_connection, create_session_sql, create_table_sql
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 
-client = discord.Client(intents=intents)
+bot = commands.Bot(command_prefix='$', intents=intents)
 
 
 def start(token: str) -> None:
-    client.run(token)
+    """Function to wake the bot"""
+    bot.run(token)
 
 
-@client.event
+@bot.event
 async def on_ready():
     """Executed when the bot joins the discord server"""
-    print(f"We have logged in as {client.user}")
+    print(f"We have logged in as {bot.user}")
 
 
-@client.event
-async def on_message(message):
-    """executed when a message is sent that the bot can read"""
-    print("responding to message ...")
-    if message.author == client.user:
-        return
+@bot.event
+async def on_guild_join():
+    """Once logged in, initiate the db if it does not already exist."""
+    print("\nEstablishing connection to postgreSQL databse...\n")
+    conn = create_connection()
+    create_table_sql(conn)
+    conn.close()
 
-    if message.content.startswith("$hello"):
-        await message.channel.send("Hello world! This is the dev version of paps-bot.")
+
+@bot.command(name="hello", help="Answers with an appropriate hello message")
+async def hello(ctx):
+    """Funny function to say hello in various ways"""
+    options = [
+        f'Ahoy {ctx.message.author.mention}!',
+        f'Hello there, Choom {ctx.message.author.mention}!',
+        f"Sup,  {ctx.message.author.mention}?",
+        f'Good day to you, {ctx.message.author.mention}!',
+        f'Hooooi {ctx.message.author.mention}!',
+        f'{ctx.message.author.mention}, Wha chu want?!',
+        f'Howdy, {ctx.message.author.mention}!',
+        ]
+
+    response = random.choice(options)
+    await ctx.send(response)
+
+
+@bot.command(name="make-event", help="(TEST)Creates an session using the given parameters:"
+                                    "Table name: The table on the SQL server to send this to"
+                                    "game type the game type to set CPR or DND"
+                                    "game date The day of the session format DD-MM-YYYY"
+                                    "gate time The time the game is set to occour HH:MM"
+                                    "**Note:** Parameters are seperated by spaces")
+async def make_event(ctx, input_type, input_date, input_time):
+    """Function to make an event"""
+    conn = create_connection()
+    if conn is not None:
+        try:
+            create_session_sql(input_type, input_date, input_time)
+            conn.close()
+        except psycopg2.Error as err:
+            conn.close()
+
+            await ctx.send(f'An exception has occured: {err}')
+            return
+    await ctx.send('Event sent')
