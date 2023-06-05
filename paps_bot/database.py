@@ -1,34 +1,63 @@
-"Database related functions for use with paps-bot"
+"""
+Database related functions for use with paps-bot
+"""
 
 import os
+import sys
 import psycopg2
-from dotenv import load_dotenv
 
 
-load_dotenv()
-# Create libpq connection string from env.
-LOGIN_HOST = os.getenv("DB_HOST")
-LOGIN_DBNAME = os.getenv("DB_NAME")
-LOGIN_USER = os.getenv("DB_USER")
-LOGIN_PASS = os.getenv("DB_PASS")
-LOGIN_PORT = os.getenv("DB_PORT")
-db_login = f"host={LOGIN_HOST} port={LOGIN_PORT} dbname={LOGIN_DBNAME}"
+def create_db_connection_string_from_env_vars() -> str:
+    """read environment variables and build libpq connection string"""
+    # read each env var and check that it gets a value, otherwise print a message to user and exit
+    db_host = os.getenv("DB_HOST", None)
+    if not db_host:
+        print("ERROR: 'DB_HOST' env var not set.")
+        sys.exit(1)
+
+    db_name = os.getenv("DB_NAME", None)
+    if not db_name:
+        print("ERROR: 'DB_NAME' env var not set.")
+        sys.exit(1)
+
+    db_user = os.getenv("DB_USER", None)
+    if not db_user:
+        print("ERROR: 'DB_USER' env var not set.")
+        sys.exit(1)
+
+    db_password = os.getenv("DB_PASSWORD", None)
+    if not db_password:
+        print("ERROR: 'DB_PASSWORD' env var not set.")
+        sys.exit(1)
+
+    db_port = os.getenv("DB_PORT", None)
+    if not db_port:
+        print("ERROR: 'DB_PORT' env var not set.")
+        sys.exit(1)
+
+    # TODO: use DB_USER DB_PASS
+    connection_string = f"host={db_host} port={db_port} user={db_user} password={db_password} dbname={db_name}"
+    print(connection_string)
+    return connection_string
+
+
+DB_CONNECTION_STRING = create_db_connection_string_from_env_vars()
 
 
 def create_connection():
     """Function establishing connection to database"""
     conn = None
-
     try:
-        conn = psycopg2.connect(db_login)
-
+        conn = psycopg2.connect(DB_CONNECTION_STRING)
     except psycopg2.DatabaseError as err:
         print(err)
     return conn
 
 
 def create_table_sql(conn):
-    """Function creating a blank table, if it does not already exist, in postgreSQL"""
+    """
+    Function creating a blank table, if it does not already exist, in postgreSQL
+    """
     sql_table = """CREATE TABLE IF NOT EXISTS paps_table (
         game_id SERIAL PRIMARY KEY,
         game_type VARCHAR(255) NOT NULL,
@@ -50,11 +79,13 @@ def create_session_sql(conn, input_type, input_date, input_time):
     game_time = input_time
     sql_query = f"""INSERT INTO paps_table (game_type, game_date, game_time)
                     VALUES {game_type}, {game_date}, {game_time}"""
+
     try:
         cur = conn.cursor()
         cur.execute(sql_query)
         conn.commit()
     except psycopg2.Error as err:
         print(err)
+
     event_id = cur.fetchone()[0]
     return event_id
