@@ -89,48 +89,42 @@ async def make_event(ctx, game_type, game_date, game_time):
 async def list_events(ctx, game_id=None, game_type=None, game_date=None, game_time=None):
     """Function to fetch all events, and return them to discord."""
     try:
-        logger.info(f"list_events command executed from discord!\nData received:\n{ctx}, {game_type}, {game_date},{game_time},{game_id}")
-
-        """Establish connection to database"""
-        logger.info("Establishing connection to database...")
         conn = create_connection()
         cur = conn.cursor()
-        logger.info("Connection established, cursor created...\nCOMMENCING OPERATION!")
-        
-        query = "SELECT game_id, game_type, game_date, game_time FROM paps_table"
-    #FIX THIS ;_;
-        if game_id:
-            query += f" WHERE game_id = {game_id}"
-        elif game_type:
-            query += f" WHERE game_type = '{game_type}'"
-        elif game_date:
-            query += f" WHERE game_date = '{game_date}'"
-        elif game_time:
-            query += f" WHERE game_time = '{game_time}'"
+#THIS JUST WONT WORK REEE
+        query = "SELECT game_id, game_type, game_date, game_time FROM paps_table WHERE TRUE"
 
-        cur.execute(query)
-        """Once data is acquired, assign to rows."""
-        logger.info("Data succesfully fetched!")
-        rows = cur.fetchall()
+        try:
+            if game_id is not None:
+                query += " AND game_id = %s"
+                cur.execute(query, (game_id,))
+            elif game_type is not None:
+                query += " AND game_type = %s"
+                cur.execute(query, (game_type,))
+            elif game_date is not None:
+                query += " AND game_date = %s"
+                cur.execute(query, (game_date,))
+            elif game_time is not None:
+                query += " AND game_time = %s"
+                cur.execute(query, (game_time,))
+            else:
+                cur.execute(query)
 
-        """Data acquired, close connection"""
-        logger.info("Closing connection...")
+            rows = cur.fetchall()
+        except (psycopg2.Error, Exception) as e:
+            await ctx.send(f"An error occurred while executing the query: {str(e)}")
+            return
+
         cur.close()
         conn.close()
 
-        """Process the data fetched from database, join data if filtered. Otherwise use as-is"""
-        logger.info("Now processing fetched data...")
         if rows:
-            event_list = "\n".join(f"{game_id} - {game_type} - {game_date} - {game_time}" 
-                                   for game_id, game_type, game_date, game_time in rows)
-            logger.info(f"Processing complete...\nattempting to send event_list to discord:\n{event_list}\nOperation sucessful!")
+            event_list = "\n".join(f"ID: {event[0]} - Type: {event[1]} - Date: {event[2]} - Time: {event[3]}" for event in rows)
             await ctx.send(f"Current Events:\n{event_list}")
         else:
-            logger.info("Processing failed, no events found in database...")
-            await ctx.send("There were no events found.")
+            await ctx.send("There are no events.")
     except psycopg2.Error as e:
-        logger.info(f"An error has occured: {str(e)}")
-        await ctx.send(f"An error has occured: {str(e)}")
+        await ctx.send(f"An error occurred: {str(e)}")
 
 
 @bot.event
