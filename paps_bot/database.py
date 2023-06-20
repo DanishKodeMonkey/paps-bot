@@ -5,6 +5,7 @@ Database related functions for use with paps-bot
 import os
 import sys
 import psycopg2
+from psycopg2 import sql
 
 
 def create_db_connection_string_from_env_vars() -> str:
@@ -54,22 +55,27 @@ def create_connection():
     return conn
 
 
-def create_table_sql(conn):
+def create_table_sql():
+    conn = psycopg2.connect(DB_CONNECTION_STRING)
+    cur = conn.cursor()
     """
     Function creating a blank table, if it does not already exist, in postgreSQL
     """
-    sql_table = """CREATE TABLE IF NOT EXISTS paps_table (
+    table_name = "paps_table"
+    sql_table_query = sql.SQL(f"""CREATE TABLE IF NOT EXISTS {table_name} (
         game_id SERIAL PRIMARY KEY,
         game_type VARCHAR(255) NOT NULL,
         game_date DATE NOT NULL,
         game_time TIME NOT NULL
-        );
-        """
+        )
+        """)
     try:
-        cur = conn.cursor()
-        cur.execute(sql_table)
-    except psycopg2.Error as err:
-        print(err)
+        cur.execute(sql_table_query)
+        conn.commit()
+        cur.close()
+        conn.close()
+    except psycopg2.Error as e:
+        print(f"Error creating table: {str(e)}")
 
 
 def create_session_sql(conn, input_type, input_date, input_time):
