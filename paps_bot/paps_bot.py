@@ -8,6 +8,7 @@ from datetime import datetime
 import asyncio
 import psycopg2
 import discord
+from discord import app_commands
 from discord.ext import commands
 from paps_bot.database import create_connection, create_table_sql
 
@@ -46,8 +47,16 @@ async def on_ready():
     logger.info("Creating table, if it does not exist already.")
     # Create table, if it does not already exist
     create_table_sql()
+    try:
+        synced = await bot.tree.sync()
+        logger.info(f"synced {len(synced)} command(s)")
+    except Exception as Err:
+        logger.error("An error has occured:\n{Err}")
     logger.info("========= Ready! =========")
 
+@bot.tree.command(name="hello")
+async def hello(interaction: discord.Interaction):
+    await interaction.response.send_message(f"Hey {interaction.user.mention}! This is a slash command!", ephemeral = False)
 
 @bot.command(
     name="make-event-novote",
