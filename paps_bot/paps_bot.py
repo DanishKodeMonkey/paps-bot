@@ -72,8 +72,12 @@ async def make_event_novote(ctx, game_type, game_date, game_time):
         # So in order for SQL to accept just HH:MM we need to add it to whatever is input
         logger.info("Formatting game time to SQL acceptable HH:MM:SS format")
         game_time = game_time + ":00"  # Required, add seconds as 00 to query
-        game_time = time.fromisoformat(game_time)  # Convert above to time object to insert to query.
-        game_date = format_date(game_date, "%d-%m-%Y")  # Formart EU standard date format to SQL date format.
+        game_time = time.fromisoformat(
+            game_time
+        )  # Convert above to time object to insert to query.
+        game_date = format_date(
+            game_date, "%d-%m-%Y"
+        )  # Formart EU standard date format to SQL date format.
 
         logger.info("Establishing connection to database...")
         conn = create_connection()
@@ -96,10 +100,14 @@ async def make_event_novote(ctx, game_type, game_date, game_time):
         conn.close()
 
         await ctx.send("Event added to database paps_table")
-        logger.warning("========= Event succesfully added! Connection closed... =========")
+        logger.warning(
+            "========= Event succesfully added! Connection closed... ========="
+        )
     except (psycopg2.Error, discord.DiscordException) as err:
         await ctx.send(f"======== An error has occured: ======== \n{str(err)}")
-        logger.error("======== Error occured: ======== \n %s \nConnection closed...", str(err))
+        logger.error(
+            "======== Error occured: ======== \n %s \nConnection closed...", str(err)
+        )
 
 
 @bot.command(
@@ -124,8 +132,12 @@ async def make_eventvote(ctx, game_type, game_date, game_time):
         # Some formatting of date and time to acceptable SQL format
         logger.info("Adjusting time format for %s to HH:MM...", game_time)
         game_time = game_time + ":00"  # Required, add seconds as 00 to query
-        game_time = time.fromisoformat(game_time)  # Convert above to time object to insert to query.
-        game_date = format_date(game_date, "%d-%m-%Y")  # Formart EU standard date format to SQL date format.
+        game_time = time.fromisoformat(
+            game_time
+        )  # Convert above to time object to insert to query.
+        game_date = format_date(
+            game_date, "%d-%m-%Y"
+        )  # Formart EU standard date format to SQL date format.
         logger.info("Now initiating vote!")
 
         # Below, the voting process starts!
@@ -136,7 +148,9 @@ async def make_eventvote(ctx, game_type, game_date, game_time):
         count_limit_success = 2
         count_limit_fail = 1
         # Create a neat embed to send with the relevant information:
-        embed = discord.Embed(title="New event vote created!", color=discord.Color.green())
+        embed = discord.Embed(
+            title="New event vote created!", color=discord.Color.green()
+        )
         embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar.url)
         embed.add_field(name="Event Type", value=game_type, inline=False)
         embed.add_field(name="Event Date", value=game_date, inline=False)
@@ -166,7 +180,9 @@ async def make_eventvote(ctx, game_type, game_date, game_time):
 
             # Below we listen for pass conditions, and react accordingly.
             while True:
-                reaction, _ = await bot.wait_for("reaction_add", timeout=voting_period, check=check)
+                reaction, _ = await bot.wait_for(
+                    "reaction_add", timeout=voting_period, check=check
+                )
                 # Itteration counters for the emojis
                 if reaction.emoji == thumbs_up:
                     thumbs_up_count += 1
@@ -187,14 +203,22 @@ async def make_eventvote(ctx, game_type, game_date, game_time):
 
                     cur.close()
                     conn.close()
-                    logger.warning("========== Event added succesfully, sending to discord! ========")
-                    await ctx.send("The event has received enough votes, and was saved!")
+                    logger.warning(
+                        "========== Event added succesfully, sending to discord! ========"
+                    )
+                    await ctx.send(
+                        "The event has received enough votes, and was saved!"
+                    )
                     break
 
                 # Fail condition reaction(Too many down-votes)
                 if thumbs_down_count >= count_limit_fail:
-                    logger.warning("========== Vote failed, too many down-votes... ==========")
-                    await ctx.send("The event received too many down-votes, and will not be saved!")
+                    logger.warning(
+                        "========== Vote failed, too many down-votes... =========="
+                    )
+                    await ctx.send(
+                        "The event received too many down-votes, and will not be saved!"
+                    )
                     break
 
         # Fail condition(Vote timeout)
@@ -231,7 +255,9 @@ async def list_events(ctx, *, args=None):
         cur = conn.cursor()
 
         # Base query to itterate upon
-        query = "SELECT game_id, game_type, game_date, game_time FROM paps_table WHERE TRUE"
+        query = (
+            "SELECT game_id, game_type, game_date, game_time FROM paps_table WHERE TRUE"
+        )
         logger.info("Established base query:\n %s", query)
 
         # Below we check if any filters were provided with the command, and act accordingly.
@@ -264,7 +290,9 @@ async def list_events(ctx, *, args=None):
                         cur.execute(query, (game_time,))
             else:
                 logger.warning("No valid filter applied...")
-                query = "SELECT game_id, game_type, game_date, game_time FROM paps_table"
+                query = (
+                    "SELECT game_id, game_type, game_date, game_time FROM paps_table"
+                )
                 logger.info("Sending query:\n{query}")
                 cur.execute(query)
 
