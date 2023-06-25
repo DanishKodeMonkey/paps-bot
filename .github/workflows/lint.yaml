@@ -1,0 +1,30 @@
+---
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.11"
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install tools
+        run: bash ci/install-pip-packages.sh
+
+      - name: Check formatting
+        run: bash ci/check-format.sh
+
+      - name: Lint code
+        run: bash ci/lint.sh
