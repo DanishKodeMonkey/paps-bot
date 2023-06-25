@@ -1,12 +1,12 @@
+# this docker-compose is for developing the bot locally
 # run the bot locally, and be cool :sunglasses:
 version: "3"
 
 services:
-
   paps-bot:
     container_name: paps-bot
     restart: unless-stopped
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     volumes:
@@ -30,3 +30,9 @@ services:
       POSTGRES_USER: superuser
       POSTGRES_PASSWORD: complicated
       POSTGRES_DB: paps-bot
+
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:8080:8080
