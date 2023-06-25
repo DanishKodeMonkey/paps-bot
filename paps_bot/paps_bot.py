@@ -27,8 +27,6 @@ def start(token: str) -> None:
     bot.run(token)
 
 
-
-
 def format_date(date_str, format_str):
     """Function to format EU date formats DD-MM-YYYY to SQL accepted time object"""
     try:
