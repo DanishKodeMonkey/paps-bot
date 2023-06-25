@@ -36,7 +36,6 @@ def create_db_connection_string_from_env_vars() -> str:
         print("ERROR: 'DB_PORT' env var not set.")
         sys.exit(1)
 
-    # TODO: use DB_USER DB_PASS
     connection_string = f"host={db_host} port={db_port} user={db_user} password={db_password} dbname={db_name}"
     print(connection_string)
     return connection_string
@@ -56,42 +55,25 @@ def create_connection():
 
 
 def create_table_sql():
-    conn = psycopg2.connect(DB_CONNECTION_STRING)
-    cur = conn.cursor()
     """
     Function creating a blank table, if it does not already exist, in postgreSQL
     """
+    conn = psycopg2.connect(DB_CONNECTION_STRING)
+    cur = conn.cursor()
     table_name = "paps_table"
-    sql_table_query = sql.SQL(f"""CREATE TABLE IF NOT EXISTS {table_name} (
+    sql_table_query = sql.SQL(
+        f"""CREATE TABLE IF NOT EXISTS {table_name} (
         game_id SERIAL PRIMARY KEY,
         game_type VARCHAR(255) NOT NULL,
         game_date DATE NOT NULL,
         game_time TIME NOT NULL
         )
-        """)
+        """
+    )
     try:
         cur.execute(sql_table_query)
         conn.commit()
         cur.close()
         conn.close()
-    except psycopg2.Error as e:
-        print(f"Error creating table: {str(e)}")
-
-
-def create_session_sql(conn, input_type, input_date, input_time):
-    """Function creating a session, to already established table"""
-    game_type = input_type
-    game_date = input_date
-    game_time = input_time
-    sql_query = f"""INSERT INTO paps_table (game_type, game_date, game_time)
-                    VALUES {game_type}, {game_date}, {game_time}"""
-
-    try:
-        cur = conn.cursor()
-        cur.execute(sql_query)
-        conn.commit()
-    except psycopg2.Error as err:
-        print(err)
-
-    event_id = cur.fetchone()[0]
-    return event_id
+    except psycopg2.Error as Err:
+        print(f"Error creating table: {str(Err)}")
