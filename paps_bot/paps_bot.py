@@ -30,12 +30,12 @@ def start(token: str) -> None:
 def format_date(date_str, format_str):
     """Function to format EU date formats DD-MM-YYYY to SQL accepted time object"""
     try:
-        logger.info(f"Attempting to format time: {date_str}")
+        logger.info("Attempting to format time: %s", date_str)
         date_obj = datetime.strptime(date_str, format_str)
-        logger.info(f"Time succesfully formatted: {date_obj.date()}")
+        logger.info("Time successfully formatted: %s", date_obj.date())
         return date_obj.date()
-    except ValueError as Err:
-        logger.error(f"Time formatting error detected: \n{Err}")
+    except ValueError as err:
+        logger.error("Time formatting error detected: \n %s", err)
         return None
 
 
@@ -44,7 +44,7 @@ async def on_ready():
     """Executed when the bot joins the discord server"""
     logger.info("We have logged in as %s", bot.user)
     logger.info("Creating table, if it does not exist already.")
-    """Create table, if it does not already exist"""
+    # Create table, if it does not already exist
     create_table_sql()
     logger.info("========= Ready! =========")
 
@@ -62,12 +62,14 @@ async def make_event_novote(ctx, game_type, game_date, game_time):
     """Bot command to insert a new event into paps_table table, voiding vote process."""
     try:
         logger.info(
-            f"\n============= Forced make-event command executed from discord! NO VOTE WILL BE MADE! =============\n Data received:\n {ctx}\nType:{game_type}, Date:{game_date}, TIME:{game_time}"
+            "\n============= Forced make-event command executed from discord! NO VOTE WILL BE MADE! =============\n Data received:\n %s \nType: %s, Date: %s, TIME: %s",
+            ctx,
+            game_type,
+            game_type,
+            game_time,
         )
-        """
-        Some formatting of game_time, we will never set an event to a specific second
-        So in order for SQL to accept just HH:MM we need to add it to whatever is input
-        """
+        # Some formatting of game_time, we will never set an event to a specific second
+        # So in order for SQL to accept just HH:MM we need to add it to whatever is input
         logger.info("Formatting game time to SQL acceptable HH:MM:SS format")
         game_time = game_time + ":00"  # Required, add seconds as 00 to query
         game_time = time.fromisoformat(
@@ -84,23 +86,27 @@ async def make_event_novote(ctx, game_type, game_date, game_time):
 
         logger.info("Sending SQL query to database...")
         cur.execute(
-            f"""INSERT INTO paps_table (game_type, game_date, game_time) 
-                    VALUES ('{game_type}', '{game_date}', '{game_time}')"""
+            f"""INSERT INTO paps_table (game_type, game_date, game_time) VALUES ('{game_type}', '{game_date}', '{game_time}')"""
         )
 
         logger.info(
-            f"Attempting to add event to paps_table:\n Type: {game_type}, Date: {game_date}, Time: {game_time}"
+            "Attempting to add event to paps_table:\n Type: %s, Date: %s, Time: %s",
+            game_type,
+            game_date,
+            game_time,
         )
         conn.commit()
         cur.close()
         conn.close()
 
         await ctx.send("Event added to database paps_table")
-        logger.warn("========= Event succesfully added! Connection closed... =========")
-    except (psycopg2.Error, discord.DiscordException) as Err:
-        await ctx.send(f"======== An error has occured: ======== \n{str(Err)}")
+        logger.warning(
+            "========= Event succesfully added! Connection closed... ========="
+        )
+    except (psycopg2.Error, discord.DiscordException) as err:
+        await ctx.send(f"======== An error has occured: ======== \n{str(err)}")
         logger.error(
-            f"======== Error occured: ======== \n{str(Err)}\nConnection closed..."
+            "======== Error occured: ======== \n %s \nConnection closed...", str(err)
         )
 
 
@@ -116,13 +122,15 @@ async def make_eventvote(ctx, game_type, game_date, game_time):
     """Function to insert a new event into paps_table table provided it passes a vote"""
     try:
         logger.info(
-            f"\n============== make-event command executed from discord! ================ Data received:\n {ctx}\nType:{game_type}, Date:{game_date}, TIME:{game_time}"
+            "\n============== make-event command executed from discord! ================ Data received:\n %s \nType: %s, Date: %s, TIME: %s",
+            ctx,
+            game_type,
+            game_date,
+            game_time,
         )
 
-        """
-        Some formatting of date and time to acceptable SQL format
-        """
-        logger.info(f"Adjusting time format for {game_time} to HH:MM...")
+        # Some formatting of date and time to acceptable SQL format
+        logger.info("Adjusting time format for %s to HH:MM...", game_time)
         game_time = game_time + ":00"  # Required, add seconds as 00 to query
         game_time = time.fromisoformat(
             game_time
@@ -132,7 +140,7 @@ async def make_eventvote(ctx, game_type, game_date, game_time):
         )  # Formart EU standard date format to SQL date format.
         logger.info("Now initiating vote!")
 
-        """Below, the voting process starts!"""
+        # Below, the voting process starts!
         # Set up some settings:
         thumbs_up = "👍"
         thumbs_down = "👎"
@@ -170,7 +178,7 @@ async def make_eventvote(ctx, game_type, game_date, game_time):
             thumbs_up_count = 0
             thumbs_down_count = 0
 
-            """Below we listen for pass conditions, and react accordingly."""
+            # Below we listen for pass conditions, and react accordingly.
             while True:
                 reaction, _ = await bot.wait_for(
                     "reaction_add", timeout=voting_period, check=check
@@ -195,7 +203,7 @@ async def make_eventvote(ctx, game_type, game_date, game_time):
 
                     cur.close()
                     conn.close()
-                    logger.warn(
+                    logger.warning(
                         "========== Event added succesfully, sending to discord! ========"
                     )
                     await ctx.send(
@@ -205,7 +213,7 @@ async def make_eventvote(ctx, game_type, game_date, game_time):
 
                 # Fail condition reaction(Too many down-votes)
                 if thumbs_down_count >= count_limit_fail:
-                    logger.warn(
+                    logger.warning(
                         "========== Vote failed, too many down-votes... =========="
                     )
                     await ctx.send(
@@ -215,11 +223,11 @@ async def make_eventvote(ctx, game_type, game_date, game_time):
 
         # Fail condition(Vote timeout)
         except asyncio.TimeoutError:
-            logger.warn("======= The voting period has ended(Timeout) ========")
+            logger.warning("======= The voting period has ended(Timeout) ========")
             await ctx.send("Voting period has ended")
-    except psycopg2.Error as Err:
-        logger.error(f"======= An error has occured: =======\n{str(Err)}")
-        await ctx.send(f"An error has occured: {str(Err)}")
+    except psycopg2.Error as err:
+        logger.error("======= An error has occured: =======\n %s", str(err))
+        await ctx.send(f"An error has occured: {str(err)}")
 
 
 @bot.command(
@@ -237,7 +245,9 @@ async def list_events(ctx, *, args=None):
     """Function to fetch events, and send them to discord."""
     try:
         logger.info(
-            f"\n============== list-events command received from discord! ============\n {ctx}\n Filtering by: {args}"
+            "\n============== list-events command received from discord! ============\n %s \n Filtering by: %s",
+            ctx,
+            args,
         )
         logger.info("Establishing connection to database...")
         conn = create_connection()
@@ -248,9 +258,9 @@ async def list_events(ctx, *, args=None):
         query = (
             "SELECT game_id, game_type, game_date, game_time FROM paps_table WHERE TRUE"
         )
-        logger.info(f"Established base query:\n{query}")
+        logger.info("Established base query:\n %s", query)
 
-        """Below we check if any filters were provided with the command, and act accordingly."""
+        # Below we check if any filters were provided with the command, and act accordingly.
         logger.info("Fetching data...")
         try:
             if args is not None:
@@ -259,36 +269,36 @@ async def list_events(ctx, *, args=None):
                     if arg.startswith("--game_id"):
                         game_id = arg.split("=")[1]
                         query += " AND game_id = %s"
-                        logger.info(f"Sending query:\n{query}")
+                        logger.info("Sending query:\n %s", query)
                         cur.execute(query, (game_id,))
                     elif arg.startswith("--game_type"):
                         game_type = arg.split("=")[1]
                         query += " AND game_type = %s"
-                        logger.info(f"Sending query:\n{query}")
+                        logger.info("Sending query:\n %s", query)
                         cur.execute(query, (game_type,))
                     elif arg.startswith("--game_date"):
                         game_date = arg.split("=")[1]
                         game_date = format_date(game_date, "%d-%m-%Y")
                         if game_date:
                             query += " AND game_date = %s"
-                            logger.info(f"Sending query:\n{query}")
+                            logger.info("Sending query:\n %s", query)
                             cur.execute(query, (game_date,))
                     elif arg.startswith("--game_time"):
                         game_time = arg.split("=")[1]
                         query += " AND game_time = %s"
-                        logger.info(f"Sending query:\n{query}")
+                        logger.info("Sending query:\n %s", query)
                         cur.execute(query, (game_time,))
             else:
-                logger.warn("No valid filter applied...")
+                logger.warning("No valid filter applied...")
                 query = (
                     "SELECT game_id, game_type, game_date, game_time FROM paps_table"
                 )
-                logger.info(f"Sending query:\n{query}")
+                logger.info("Sending query:\n{query}")
                 cur.execute(query)
 
             rows = cur.fetchall()
-        except (psycopg2.Error, Exception) as Err:
-            await ctx.send(f"An error occurred while executing the query: {str(Err)}")
+        except (psycopg2.Error, Exception) as err:
+            await ctx.send(f"An error occurred while executing the query: {str(err)}")
             return
         logger.info("Query sent! Fetch succesfull!")
         logger.info("Closing connection to database...")
@@ -302,16 +312,17 @@ async def list_events(ctx, *, args=None):
                 for game_id, game_type, game_date, game_time in rows
             )
             logger.info(
-                f"Processing succesfull! Final fetch:\n{event_list}\n Sending to discord..."
+                "Processing succesfull! Final fetch:\n %s \n Sending to discord...",
+                event_list,
             )
             await ctx.send(f"Current Events:\nID - TYPE - DATE - TIME\n{event_list}")
             logger.info("====== Discord message sent! =========")
         else:
-            logger.warn("========No events found from query...========")
+            logger.warning("========No events found from query...========")
             await ctx.send("There are no events.")
-    except psycopg2.Error as Err:
-        logger.error(f"======== An error has occured: =======\n{str(Err)}")
-        await ctx.send(f"An error occurred: {str(Err)}")
+    except psycopg2.Error as err:
+        logger.error("======== An error has occured: =======\n %s", str(err))
+        await ctx.send(f"An error occurred: {str(err)}")
 
 
 @bot.command(
@@ -324,7 +335,9 @@ async def delete_event(ctx, game_id: int):
     """A function to delete events from database by game_id"""
     try:
         logger.info(
-            f"\n============ delete-event command received from discord! ===========\n {ctx}\n ID to delete: {game_id}"
+            "\n============ delete-event command received from discord! ===========\n %s \n ID to delete: %s",
+            ctx,
+            game_id,
         )
         logger.info("Establishing connection...")
         conn = create_connection()
@@ -332,7 +345,7 @@ async def delete_event(ctx, game_id: int):
         cur = conn.cursor()
 
         query = "DELETE FROM paps_table WHERE game_id = %s"
-        logger.info(f"Query created: \n{query}")
+        logger.info("Query created: \n %s", query)
         cur.execute(query, (game_id,))
         conn.commit()
         logger.info("Sending query...")
@@ -340,13 +353,13 @@ async def delete_event(ctx, game_id: int):
             logger.info("Event succesfully deleted!")
             await ctx.send(f"Event with ID {game_id} has been deleted.")
         else:
-            logger.warn(f"No event found by ID: {game_id}")
+            logger.warning("No event found by ID: %s", game_id)
             await ctx.send(f"No event found with ID: {game_id}.")
 
         cur.close()
         conn.close()
-    except psycopg2.Error as Err:
-        await ctx.ssend(f"An error has occured: {str(Err)}")
+    except psycopg2.Error as err:
+        await ctx.ssend(f"An error has occured: {str(err)}")
 
 
 bot.command(
@@ -364,7 +377,12 @@ async def edit_event(ctx, game_id: int, game_type=None, game_date=None, game_tim
     """A function to edit existing events by id"""
     try:
         logger.info(
-            f"\n============ edit-event command received from discord! ===========\n {ctx}\n Game ID to edit: {game_id}\n {game_type}, {game_date}, {game_time}"
+            "\n============ edit-event command received from discord! ===========\n %s \n Game ID to edit: %s \n %s, %s, %s",
+            ctx,
+            game_id,
+            game_type,
+            game_date,
+            game_time,
         )
         logger.info("Establishing connection to SQL database...")
         conn = create_connection()
@@ -372,39 +390,39 @@ async def edit_event(ctx, game_id: int, game_type=None, game_date=None, game_tim
         cur = conn.cursor()
 
         query = "UPDATE paps_table SET"
-        logger.info(f"Base query created: {query}")
+        logger.info("Base query created: %s", query)
         if game_type:
             query += " game_type = %s,"
-            logger.info(f"Changing game type to: {game_type}")
+            logger.info("Changing game type to: %s", game_type)
         if game_date:
             query += " game_date = %s,"
-            logger.info(f"Changing game date to: {game_date}")
+            logger.info("Changing game date to: %s", game_date)
         if game_time:
             query += " game_type = %s,"
-            logger.info(f"Changing game time to: {game_time}")
+            logger.info("Changing game time to: %s", game_time)
 
         # Remove the trailing comma from the query
         query = query.rstrip(",")
 
         query += " WHERE id = %s"
         cur.execute(query, (game_type, game_date, game_time, game_id))
-        logger.info(f"Finaly query:\n {query}")
+        logger.info("Final query:\n %s", query)
         logger.info("Sending query...")
         conn.commit()
 
         if cur.rowcount > 0:
-            logger.info(f"======== Event ID:{game_id} has been updated... ========")
+            logger.info("======== Event ID: %s has been updated... ========", game_id)
             await ctx.send(f"Event with ID:{game_id} has been updated.")
         else:
-            logger.warn(f"========= No event found by ID:{game_id} =========")
+            logger.warning("========= No event found by ID:%s =========", game_id)
             await ctx.send(f"No event found with ID: {game_id}.")
 
         logger.info("======= Closing connection... ========")
         cur.close()
         conn.close()
-    except psycopg2.Error as Err:
-        logger.error(f"======== An error has occured: ========\n{str(Err)}")
-        await ctx.send(f"An error has occured: {str(Err)}")
+    except psycopg2.Error as err:
+        logger.error("======== An error has occured: ========\n %s", str(err))
+        await ctx.send(f"An error has occured: {str(err)}")
 
 
 @bot.event
@@ -413,7 +431,7 @@ async def on_guild_join():
     logger.info("Establishing connection to postgreSQL databse ...")
     conn = create_connection()
     logger.info("Creating new table...")
-    create_table_sql(conn)
+    create_table_sql()
     logger.info("Done, now ready!")
     conn.close()
 

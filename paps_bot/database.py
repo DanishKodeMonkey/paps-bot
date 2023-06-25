@@ -4,8 +4,12 @@ Database related functions for use with paps-bot
 
 import os
 import sys
+import logging
 import psycopg2
 from psycopg2 import sql
+
+# get the bot logger
+logger = logging.getLogger("discord")
 
 
 def create_db_connection_string_from_env_vars() -> str:
@@ -75,5 +79,5 @@ def create_table_sql():
         conn.commit()
         cur.close()
         conn.close()
-    except psycopg2.Error as Err:
-        print(f"Error creating table: {str(Err)}")
+    except psycopg2.Error as err:
+        logger.error("Error creating table: %s", str(err))
