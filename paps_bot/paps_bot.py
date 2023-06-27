@@ -12,6 +12,11 @@ from discord import app_commands
 from discord.ext import commands
 from paps_bot.database import create_connection, create_table_sql
 
+"""
+Bot shutdown state for graceful shutdown of bot.
+"""
+is_shutting_down = False
+
 
 # create the bot
 intents = discord.Intents.default()
@@ -22,11 +27,6 @@ bot = commands.Bot(command_prefix="$", intents=intents)
 logger = logging.getLogger("discord")
 
 
-def start(token: str) -> None:
-    """Function to wake the bot"""
-    logger.info("Starting paps-bot ...")
-    bot.run(token)
-
 
 def format_date(date_str, format_str):
     """Function to format EU date formats DD-MM-YYYY to SQL accepted time object"""
@@ -35,8 +35,8 @@ def format_date(date_str, format_str):
         date_obj = datetime.strptime(date_str, format_str)
         logger.info("Time successfully formatted: %s", date_obj.date())
         return date_obj.date()
-    except ValueError as err:
-        logger.error("Time formatting error detected: \n %s", err)
+    except ValueError as Err:
+        logger.error("Time formatting error detected: \n %s", Err)
         return None
 
 
@@ -51,8 +51,54 @@ async def on_ready():
         synced = await bot.tree.sync()
         logger.info(f"synced {len(synced)} command(s)")
     except Exception as Err:
-        logger.error("An error has occured:\n{Err}")
+        logger.error("An error has occured:\n %s", Err)
     logger.info("========= Ready! =========")
+
+@bot.event
+async def on_shutdown():
+    """Event handler on_shutdown listens for sigterm signals, and performs an action."""
+    global is_shutting_down
+    is_shutting_down = True
+    logger.warning("Bot is shutting down...")
+    conn = create_connection()
+    conn.rollback()
+    conn.close()
+    await bot.logout()
+    await bot.close()
+
+@bot.event
+async def on_guild_join():
+    """Once a guild is joined, initiate the db if it does not already exist."""
+    logger.info("Establishing connection to postgreSQL databse ...")
+    conn = create_connection()
+    logger.info("Creating new table...")
+    create_table_sql()
+    logger.info("Done, now ready!")
+    conn.close()
+
+@bot.command()
+async def bot_shutdown(ctx):
+    """Just a command that can be executed to notify users that bot is shutting down."""
+    if is_shutting_down:
+        await ctx.send("The bot is currently shutting down...")
+        return
+    
+@bot.tree.command(name="hello", description="Answers with an appropriate hello message")
+async def hello(Interaction:discord.Interaction):
+    """Funny function to say hello in various ways"""
+    options = [
+        f"Ahoy {Interaction.user.mention}!",
+        f"Hello there, Choom {Interaction.user.mention}!",
+        f"Sup,  {Interaction.user.mention}?",
+        f"Good day to you, {Interaction.user.mention}!",
+        f"Hooooi {Interaction.user.mention}!",
+        f"{Interaction.user.mention}, Wha chu want?!",
+        f"Howdy, {Interaction.user.mention}!",
+    ]
+
+    response = random.choice(options)
+    logger.info("Sending message %s ...", response)
+    await Interaction.response.send_message(response)
 
 
 @bot.tree.command(name="make-event-novote", 
@@ -104,8 +150,15 @@ async def make_event_novote(Interaction:discord.Interaction, game_type:str, game
         conn.commit()
         cur.close()
         conn.close()
-
-        await Interaction.channel.send("Event added to database paps_table")
+        embed =  discord.Embed(
+            title="Event created WITHOUT a vote", color=discord.Color.red()
+        )
+        embed.set_author(name=Interaction.user, icon_url=Interaction.user.avatar.url)
+        embed.add_field(name="Event Type", value=game_type, inline=False)
+        embed.add_field(name="Event Date", value=game_date, inline=False)
+        embed.add_field(name="Event Time", value=game_time, inline=False)
+        embed.set_footer(text="This event was forced, bypassing the vote.")
+        await Interaction.response.send_message(embed=embed)
         logger.warning(
             "========= Event succesfully added! Connection closed... ========="
         )
@@ -311,6 +364,17 @@ async def list_events(Interaction:discord.Interaction, *,
         conn.close()
 
         logger.info("Now processing fetch data...")
+        logger.info("Creating discord embed object...")
+        if rows:
+            embed = discord.Embed(title="Events Results:", color=discord.Color.blue())
+            embed.add_field(name="ID - Type - Date - Location", value='\u200b', inline=False) #Header field
+            for game_id, game_type, game_date, game_time in rows:
+                row_info = f"{game_id} - {game_type} - {game_date} - {game_time}" #Assemble SQL data
+                embed.add_field(name="\u200b", value=row_info, inline=False) #Send SQL data
+            logger.info("Discord embed created, data assembled, sending to discord...")
+            await Interaction.response.send_message(embed=embed)
+            logger.info("======== Discord message sent via Embed! ==========")
+            """ OLD(await confirmation of to use embed)
         if rows:
             event_list = "\n".join(
                 f"{game_id} - {game_type} - {game_date} - {game_time}"
@@ -323,9 +387,12 @@ async def list_events(Interaction:discord.Interaction, *,
             await Interaction.response.send_message("Results:", ephemeral=True)
             await Interaction.channel.send(f"Current Events:\nID - TYPE - DATE - TIME\n{event_list}")
             logger.info("====== Discord message sent! =========")
+            """
         else:
             logger.warning("========No events found from query...========")
-            await Interaction.channel.send("There are no events.")
+            embed = embed = discord.Embed(title="Events Results:", color=discord.Color.red())
+            embed.add_field(name="No events found", value="There were no events found.")
+            await Interaction.channel.send(embed=embed)
     except psycopg2.Error as err:
         logger.error("======== An error has occured: =======\n %s", str(err))
         await Interaction.channel.send(f"An error occurred: {str(err)}")
@@ -355,14 +422,21 @@ async def delete_event(Interaction:discord.Interaction, game_id:int):
         logger.info("Sending query...")
         if cur.rowcount > 0:
             logger.info("Event succesfully deleted!")
-            await Interaction.response.send_message(f"Event with ID {game_id} has been deleted.")
+            embed = discord.Embed(title=f"Delete Event", color=discord.Color.red())
+            embed.set_author(name=Interaction.user, icon_url=Interaction.user.avatar.url)
+            embed.add_field(name="Following event id has been deleted", value=game_id, inline=False)
+            await Interaction.response.send_message(embed=embed)
         else:
             logger.warning("No event found by ID: %s", game_id)
-            await Interaction.channel.send(f"No event found with ID: {game_id}.")
+            embed = discord.Embed(title=f"Delete Event", color=discord.Color.red())
+            embed.set_author(name=Interaction.user, icon_url=Interaction.user.avatar.url)
+            embed.add_field(name="No event was found by that id", value=game_id, inline=False)
+            await Interaction.channel.send(embed=embed)
 
         cur.close()
         conn.close()
     except psycopg2.Error as err:
+        logger.error(f"========= An error has occured: =========\n{str(err)}")
         await Interaction.channel.send(f"An error has occured: {str(err)}")
 
 
@@ -416,10 +490,18 @@ async def edit_event(Interaction:discord.Interaction, game_id:int, game_type:str
 
         if cur.rowcount > 0:
             logger.info("======== Event ID: %s has been updated... ========", game_id)
-            await Interaction.response.send_message(f"Event with ID:{game_id} has been updated.")
+            embed = discord.Embed(title="Edit Event", color=discord.Color.yellow())
+            embed.set_author(name=Interaction.user, icon_url=Interaction.user.avatar.url)
+            edit_field = f"{game_id} - {game_type} - {game_date} - {game_time}"
+            embed.add_field(name="The following event has been edited", value=edit_field, inline=False)
+            await Interaction.response.send_message(embed=embed)
         else:
             logger.warning("========= No event found by ID:%s =========", game_id)
-            await Interaction.channel.send(f"No event found with ID: {game_id}.")
+            embed = discord.Embed(title="Edit event", color=discord.Color.red())
+            embed.set_author(name=Interaction.user, icon_url=Interaction.user.avatar.url)
+            edit_field = f"{game_id} - {game_type} - {game_date} - {game_time}"
+            embed.add_field(name="No event was found by game ID", value=game_id, inline=False)
+            await Interaction.channel.send(embed=embed)
 
         logger.info("======= Closing connection... ========")
         cur.close()
@@ -429,30 +511,7 @@ async def edit_event(Interaction:discord.Interaction, game_id:int, game_type:str
         await Interaction.channel.send(f"An error has occured: {str(err)}")
 
 
-@bot.event
-async def on_guild_join():
-    """Once a guild is joined, initiate the db if it does not already exist."""
-    logger.info("Establishing connection to postgreSQL databse ...")
-    conn = create_connection()
-    logger.info("Creating new table...")
-    create_table_sql()
-    logger.info("Done, now ready!")
-    conn.close()
-
-
-@bot.tree.command(name="hello", description="Answers with an appropriate hello message")
-async def hello(Interaction:discord.Interaction):
-    """Funny function to say hello in various ways"""
-    options = [
-        f"Ahoy {Interaction.user.mention}!",
-        f"Hello there, Choom {Interaction.user.mention}!",
-        f"Sup,  {Interaction.user.mention}?",
-        f"Good day to you, {Interaction.user.mention}!",
-        f"Hooooi {Interaction.user.mention}!",
-        f"{Interaction.user.mention}, Wha chu want?!",
-        f"Howdy, {Interaction.user.mention}!",
-    ]
-
-    response = random.choice(options)
-    logger.info("Sending message %s ...", response)
-    await Interaction.response.send_message(response)
+def start(token: str) -> None:
+    """Function to wake the bot"""
+    logger.info("Starting paps-bot ...")
+    bot.run(token)
