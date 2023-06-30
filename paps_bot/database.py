@@ -58,22 +58,46 @@ def create_connection():
     return conn
 
 
-def create_table_sql():
+def event_table_SQL():
     """
-    Function creating a blank table, if it does not already exist, in postgreSQL
+    Function creating a blank event table, if it does not already exist, in postgreSQL
     """
     conn = create_connection()
     cur = conn.cursor()
-    table_name = "paps_table"
+    table_name = "event_table"
     sql_table_query = sql.SQL(
-        f"""CREATE TABLE IF NOT EXISTS {table_name} (
+        """CREATE TABLE IF NOT EXISTS {table_name} (
         game_id SERIAL PRIMARY KEY,
         game_type VARCHAR(255) NOT NULL,
         game_date DATE NOT NULL,
-        game_time TIME NOT NULL
-        )
+        game_time TIME NOT NULL,
+        player_id INT REFERENCES player_table(player_id)
+        );
+        """  
+    ).format(table_name=sql.Identifier(table_name))
+    try:
+        cur.execute(sql_table_query)
+        conn.commit()
+        cur.close()
+        conn.close()
+    except psycopg2.Error as err:
+        logger.error("Error creating table: %s", str(err))
+
+def player_table_SQL():
+    """
+    Function creating a blank player table, if it does not already exist, in postgreSQL
+    """
+    conn = create_connection()
+    cur = conn.cursor()
+    table_name = "player_table"
+    sql_table_query = sql.SQL(
+        """CREATE TABLE IF NOT EXISTS {table_name} (
+        player_id SERIAL PRIMARY KEY,
+        discord_id VARCHAR(255) NOT NULL,
+        discord_name VARCHAR(255) NOT NULL
+        );
         """
-    )
+    ).format(table_name=sql.Identifier(table_name))
     try:
         cur.execute(sql_table_query)
         conn.commit()

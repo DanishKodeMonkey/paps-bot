@@ -10,7 +10,7 @@ import psycopg2
 import discord
 from discord import app_commands
 from discord.ext import commands
-from paps_bot.database import create_connection, create_table_sql
+from paps_bot.database import create_connection, event_table_SQL, player_table_SQL
 
 """
 Bot shutdown state for graceful shutdown of bot.
@@ -43,14 +43,21 @@ def format_date(date_str, format_str):
 async def on_ready():
     """Executed when the bot joins the discord server"""
     logger.info("We have logged in as %s", bot.user)
-    logger.info("Creating table, if it does not exist already.")
+    logger.info("Creating player table, if it does not exist already")
+    player_table_SQL()
+    logger.info("Done..")
+    logger.info("Creating event table, if it does not exist already.")
     # Create table, if it does not already exist
-    create_table_sql()
+    event_table_SQL()
+    logger.info("Done...")
+
     try:
         synced = await bot.tree.sync()
         logger.info("synced %s command(s)" % (len(synced)))
-    except psycopg2.DatabaseError as err:
-        logger.error("An error has occured:\n %s", err)
+    except psycopg2.DatabaseError as DBerr:
+        logger.error("A database error has occured:\n %s", DBerr)
+    except discord.DiscordException as Discerr:
+        logger.error(f"A discord error has occured:\n{Discerr}")
     logger.info("========= Ready! =========")
 
 
@@ -73,7 +80,8 @@ async def on_guild_join():
     logger.info("Establishing connection to postgreSQL databse ...")
     conn = create_connection()
     logger.info("Creating new table...")
-    create_table_sql()
+    event_table_SQL()
+    player_table_SQL()
     logger.info("Done, now ready!")
     conn.close()
 
@@ -85,7 +93,19 @@ async def bot_shutdown(ctx):
         await ctx.send("The bot is currently shutting down...")
         return
 
+@bot.command()
+async def sync(ctx):
+    logger.info("Manual slash command sync executed...")
+    try:
+        synced = await bot.tree.sync()
+        logger.info("synced %s command(s)" % (len(synced)))
+        await ctx.send("Slash commands manually synced...")
+    except psycopg2.DatabaseError as DBerr:
+        logger.error("A database error has occured:\n %s", DBerr)
+    except discord.DiscordException as Discerr:
+        logger.error(f"A discord error has occured:\n{Discerr}")
 
+"""============ Hurr hurr for fun commands: ============"""
 @bot.tree.command(name="hello", description="Answers with an appropriate hello message")
 async def hello(Interaction: discord.Interaction):
     """Funny function to say hello in various ways"""
@@ -103,6 +123,7 @@ async def hello(Interaction: discord.Interaction):
     logger.info("Sending message %s ...", response)
     await Interaction.response.send_message(response)
 
+"""========== EVENT related commands ============"""
 
 @bot.tree.command(
     name="make-event-novote",
@@ -112,9 +133,10 @@ async def hello(Interaction: discord.Interaction):
     game_type="Type of event - CPR or DND",
     game_date="Date of event - DD-MM-YYYY",
     game_time="Time of event - HH:MM",
+    player_id="Players forced to attend?",
 )
 async def make_event_novote(
-    Interaction: discord.Interaction, game_type: str, game_date: str, game_time: str
+    Interaction: discord.Interaction, game_type: str, game_date: str, game_time: str, player_id:int
 ):
     """Bot command to insert a new event into paps_table table, voiding vote process."""
     try:
@@ -124,6 +146,7 @@ async def make_event_novote(
             game_type,
             game_type,
             game_time,
+            player_id,
         )
         # Some formatting of game_time, we will never set an event to a specific second
         # So in order for SQL to accept just HH:MM we need to add it to whatever is input
@@ -143,14 +166,15 @@ async def make_event_novote(
 
         logger.info("Sending SQL query to database...")
         cur.execute(
-            f"""INSERT INTO paps_table (game_type, game_date, game_time) VALUES ('{game_type}', '{game_date}', '{game_time}')"""
+            f"""INSERT INTO event_table (game_type, game_date, game_time, player_id) VALUES ('{game_type}', '{game_date}', '{game_time}','{player_id}')"""
         )
 
         logger.info(
-            "Attempting to add event to paps_table:\n Type: %s, Date: %s, Time: %s",
+            "Attempting to add event to event_table:\n Type: %s, Date: %s, Time: %s, Attendee ids: %s",
             game_type,
             game_date,
             game_time,
+            player_id,
         )
         conn.commit()
         cur.close()
@@ -162,6 +186,7 @@ async def make_event_novote(
         embed.add_field(name="Event Type", value=game_type, inline=False)
         embed.add_field(name="Event Date", value=game_date, inline=False)
         embed.add_field(name="Event Time", value=game_time, inline=False)
+        embed.add_field(name="Attendee IDs", value=player_id, inline=False)
         embed.set_footer(text="This event was forced, bypassing the vote.")
         await Interaction.response.send_message(embed=embed)
         logger.warning(
@@ -547,7 +572,233 @@ async def edit_event(
         logger.error("======== An error has occured: ========\n %s", str(err))
         await Interaction.channel.send(f"An error has occured: {str(err)}")
 
+"""============= PLAYER related commands ============"""
 
+@bot.tree.command(name="register-self", description="Register youself to the player list of RPG players!")
+async def register_player(Interaction=discord.Interaction):
+    """A function to register the user of the command, to the player_table table"""
+    #Get the discord member ID and name, assign to variables.
+    discord_id = Interaction.user.id
+    discord_name = Interaction.user.name
+
+    try:
+        logger.info(f"============= register-self has been executed! Following data received: ==============\n {discord_name}, {discord_id}")
+        #Establish connection
+        logger.info("Establishing connection...")
+        conn = create_connection()
+        logger.info("Connection established, creating cursor...")
+        cur = conn.cursor()
+        logger.info("Cursor created, now ready!")
+
+        # First, check if player is already registered:
+        logger.info(f"Checking if discord id: {discord_id} is already registered...")
+        cur.execute("SELECT player_id FROM player_table WHERE discord_id = %s", (str(discord_id),))
+        existing_player = cur.fetchone()
+
+        if existing_player:
+            logger.warning(f"Discord id: {discord_id} already registered, cancelling.")
+            await Interaction.channel.send("You are already registered as a player.")
+
+        #Otherwise, continue operation:
+        else:
+            # Insert discord member ID and name into player_table, 
+            # by extracting data from discord.Interaction.user from invoker
+            logger.info("Creating SQL, and inserting values...")
+            cur.execute("INSERT INTO player_table (discord_id, discord_name) VALUES (%s, %s) RETURNING player_id",
+                        (str(discord_id), discord_name))
+            conn.commit()
+
+            # Renumber the player IDs to ensure sequence in player_id
+            logger.info("Re-ordering players to sequencial player_ids")
+            cur.execute("SELECT player_id FROM player_table ORDER BY player_id;")
+            player_ids = [row[0] for row in cur.fetchall()]
+            for i, p_id in enumerate(player_ids, start=1):
+                cur.execute("UPDATE player_table SET player_id = %s WHERE player_id = %s;", (i, p_id))
+            logger.info("SQL sent, fetching player id...")
+            conn.commit()
+            logger.info(f"Changes committed! Following player has been created:\nPlayer_table ID:\nDiscord user:\n{discord_name}\nDiscord ID:\n{discord_id}")
+            logger.info("Creating cool discord embed to send!")
+            embed = discord.Embed(title="Player registered:", 
+                                    description="You have been successfully registered as a player for Pen and Paper Shennanigans!",
+                                    color=discord.Color.green())
+            embed.add_field(name="Discord name", value=discord_name, inline=False)
+            await Interaction.response.send_message(embed=embed)
+            
+
+
+    except psycopg2.Error as err:
+        logger.error("Error occured registering player: %s", str(err))
+        await Interaction.channel.send("An error has occured while registering the player.")
+    
+    finally:
+        logger.info("Closing cursor...")
+        cur.close()
+        logger.info("======== Closing connection... goodbye. ========")
+        conn.close()
+
+@bot.tree.command(name="list-players", description="List all registered players")
+async def list_players(Interaction=discord.Interaction):
+    """A function for listing all registered players"""
+    try:
+        logger.info(f"========= list-players has been executed by {Interaction.user.name}! ========")
+        logger.info("Establishing connection...")
+        conn = create_connection()
+        logger.info("Connection established, creating cursor...")
+        cur = conn.cursor()
+        logger.info("Cursor created, now ready!")
+
+        logger.info("Fetching list of players from database...")
+        cur.execute("SELECT player_id, discord_id, discord_name FROM player_table;")
+        rows = cur.fetchall()
+
+        if rows:
+            logger.info("List fetched, now formatting to discord message.")
+            header = "Player- ID - Discord ID - Discord Name"
+            player_list = "\n".join(f"{row[0]} - {row[1]} - {row[2]}" for row in rows)
+            message = f"{header}\n{player_list}"
+            logger.info("Formatting complete, sending to discord...")
+            await Interaction.response.send_message(message)
+        else:
+            logger.warning("No players found, cancelling...")
+            await Interaction.channel.send("No players are currently registered.")
+    
+    except psycopg2.Error as err:
+        logger.error("Error occured while executing SQL query: %s", str(err))
+        await Interaction.channel.send("An error occured while listing the players")
+
+    finally:
+        logger.info("Closing cursor...")
+        cur.close()
+        logger.info("========= Closing connection... goodbye. ==========")
+        conn.close()
+
+
+@bot.tree.command(name="remove-player", description="Remove player by id from player list")
+async def remove_player(Interaction=discord.Interaction, player_id:int=None):
+    """A function to remove a player by id from database"""
+    try:
+        logger.info(f"========= delete-players has been executed by {Interaction.user.name}! ========")
+        logger.info("Establishing connection...")
+        conn = create_connection()
+        logger.info("Connection established, creating cursor...")
+        cur = conn.cursor()
+        logger.info("Cursor created, now ready!")
+
+        #Check if the player exist.
+        logger.info("Checking if the player exist...")
+        cur.execute("SELECT * FROM player_table WHERE player_id = %s;", (player_id,))
+        #Assign data to player for use later
+        player = cur.fetchone()
+        logger.info(f"Player found:\n{player}")
+        if not player:
+        # Player does not exist
+            logger.warning("No player found, responding...")
+            embed = discord.Embed(title="Player removal", color=discord.Color.red())
+            embed.set_author(
+                            name=Interaction.user, icon_url=Interaction.user.avatar.url
+                            )
+            embed.add_field(name="Player ID", value="No player was found by that ID")
+            logger.info("Embed created... sending...")
+            await Interaction.channel.send(embed=embed)
+        
+        #Store the player data before deletion(for confirmation)
+        logger.info("Storing player information for confirmation...")
+        deleted_player_id = player[0]
+        deleted_discord_name = player[2]
+
+    
+        #Delete the player
+        logger.info(f"Removing {player} from database...")
+        cur.execute("DELETE FROM player_table WHERE player_id = %s", (player_id,))
+        conn.commit()
+
+        #Confirm deletion with cool embed
+        logger.info("Player removed, creating discord embed...")
+        embed = discord.Embed(title="Player removal", color=discord.Color.red())
+        embed.set_author(
+                        name=Interaction.user, icon_url=Interaction.user.avatar.url
+                        )
+        embed.add_field(name="Player ID", value=deleted_player_id)
+        embed.add_field(name="Discord Name", value=deleted_discord_name)
+        logger.info("Embed created... sending...")
+        await Interaction.response.send_message(embed=embed)
+
+        #Renumber the player_table
+        logger.info("Now renumering existing players in player_table")
+            # First, fetch all the players, ordered by player_id
+        logger.info("Fetching all players from player_table...")
+        cur.execute("SELECT player_id FROM player_table ORDER BY player_id;")
+            # Fetch the data, and toss them in a list by row.
+        logger.info("Sorting all players, assigning to new id where needed...")
+        player_ids = [row[0] for row in cur.fetchall()]
+            # iterate over each player_id, numbering them, starting from 1.
+        for i, p_id in enumerate(player_ids, start=1):
+            # Update the player_table table, setting the player_id to the new index value 'i' 
+            # where player_id matches existing player_id'p_id'
+            logger.info("Updating player_table with new player_ids")
+            cur.execute("UPDATE player_table SET player_id = %s WHERE player_id = %s;", (i,p_id))
+        conn.commit()
+        logger.info("Operation complete...")
+
+    except psycopg2.Error as err:
+        await Interaction.channel.send("An error occured while handling the player removal")
+        logger.error("An error has occured while executing SQL query:\n%s", str(err))
+    
+    finally:
+        logger.info("Closing cursor...")
+        cur.close()
+        logger.info("========= Closing connection... goodbye. ==========")
+        conn.close()
+
+"""Cross-table commands - attendance"""
+@bot.tree.command(name="attend-event", description="Register your attendance for an event")
+async def attend_event(Interaction=discord.Interaction, event_id:int=None):
+    """A function to register attendance to an event"""
+    try:
+        # Log in to databasse
+        logger.info(f"========= attend-event has been executed by {Interaction.user.name}! ========")
+        logger.info("Establishing connection...")
+        conn = create_connection()
+        logger.info("Connection established, creating cursor...")
+        cur = conn.cursor()
+        logger.info("Cursor created, now ready!")
+
+        # Check if the event exist in the event_table
+        cur.execute("SELECT * FROM event_table WHERE event_id = %s;",(event_id,))
+        event = cur.fetchone()
+
+        if not event:
+            await Interaction.followup.send_message("Event not found.")
+        
+        # Get the users player_id from the player_list table
+        user_id = Interaction.user.id
+        cur.execute("SELECT player_id FROM player_list WHERE discord_id = %s;", (user_id,))
+        player = cur.fetchone()
+
+        if not player:
+            await Interaction.followup.send_message("Player not found. Please register first.")
+
+        player_id = player[0]
+
+        #Register the users player_id to the player_id row in event_table
+        cur.execute("UPDATE event_table SET player_id = %s WHERE event_id = %s;", (player_id, event_id))
+        conn.commit()
+        await Interaction.response.send_message(f"Player ID {player_id} has registered attendance for event ID {event_id}")
+    
+    except psycopg2.Error as DBerr:
+        logger.error(f"Database error detected:\n{DBerr}")
+        await Interaction.followup.send("A database error occured...")
+    except discord.DiscordException as DiscErr:
+        logger.error(f"A discord error has occured:\n{DiscErr}")
+        await Interaction.followup.send("A discord error has occured...")
+    
+    finally:
+        logger.info("Closing cursor...")
+        cur.close()
+        logger.info("========= Closing connection... goodbye. ==========")
+        conn.close()
+
+"""============= Utility functions ==============="""
 def start(token: str) -> None:
     """Function to wake the bot"""
     logger.info("Starting paps-bot ...")
