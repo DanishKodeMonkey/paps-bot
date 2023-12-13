@@ -9,7 +9,7 @@ Currently the main feature of paps-bot, is incorporating the discord bot API to 
 
 I learned a great deal during this endavour, it was a first dive into asynchronous python programming, and it was a trip to figure out. 
 
-Paps-bot using asynchronous commands and the discord-api to listen in on a assigned channel for specific prompts and formats, once a supported command is submitted, like an event. 
+Paps-bot using asynchronous commands and the discord-api to listen in on a assigned channel for specific prompts and formats.
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/89365777-afec-45fe-ae97-0927c075db2b)
 
 ---
@@ -33,7 +33,8 @@ Then, as needed, a event can be edited, pulled, or removed, by the users.
 
 
 It's even possible to submit a search query and pull specific searches depending on what time/date or game sort it is about.
-Furthermore, should need be a event can be submitted in form of a vote from participating members, should enough members vote for an event, it will be saved. If not, discarded.
+Furthermore, should need be a event can be submitted in form of a vote from participating members.
+Should enough members vote for an event, it will be saved. If not, discarded.
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/8e80dc47-eeee-4e3b-979b-91a8e0ac966a)
 
 ---
