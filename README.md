@@ -32,6 +32,7 @@ Then paps bot handles the formatting and submitting of the event to a postgresSQ
 It's even possible to submit a search query and pull specific searches depending on what time/date or game sort it is about.
 Furthermore, should need be a event can be submitted in form of a vote from participating members.
 Should enough members vote for an event, it will be saved. If not, discarded.
+
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/8e80dc47-eeee-4e3b-979b-91a8e0ac966a)
 
 ---
