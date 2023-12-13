@@ -20,6 +20,8 @@ Then paps bot handles the formatting and submitting of the event to a postgresSQ
 
 ---
 ## Examples of commands
+It's even possible to submit a search query and pull specific searches depending on what time/date or game sort it is about. Delete, and edit!
+
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/e666af32-df25-4db9-b4b1-eb183c6e9590)
 
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/8fad4fc7-131f-4ff8-bdd1-89debe64b169)
@@ -28,8 +30,7 @@ Then paps bot handles the formatting and submitting of the event to a postgresSQ
 
 ---
 
-
-It's even possible to submit a search query and pull specific searches depending on what time/date or game sort it is about.
+## Vote for events!
 Furthermore, should need be a event can be submitted in form of a vote from participating members.
 Should enough members vote for an event, it will be saved. If not, discarded.
 
