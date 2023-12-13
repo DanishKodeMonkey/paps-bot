@@ -20,9 +20,6 @@ Then paps bot handles the formatting and submitting of the event to a postgresSQ
 
 ---
 
-
-
-Then, as needed, a event can be edited, pulled, or removed, by the users. 
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/e666af32-df25-4db9-b4b1-eb183c6e9590)
 
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/8fad4fc7-131f-4ff8-bdd1-89debe64b169)
