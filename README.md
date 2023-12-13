@@ -13,8 +13,10 @@ Paps-bot using asynchronous commands and the discord-api to listen in on a assig
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/89365777-afec-45fe-ae97-0927c075db2b)
 
 
+
 Then paps bot handles the formatting and submitting of the event to a postgresSQL database
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/f8e8a63f-aa52-4fb0-ba7b-45cc2d596a85)
+
 
 
 Then, as needed, a event can be edited, pulled, or removed, by the users. 
@@ -25,9 +27,11 @@ Then, as needed, a event can be edited, pulled, or removed, by the users.
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/414b81d9-f74b-4980-88cd-6f3e6e7b5fb4)
 
 
+
 It's even possible to submit a search query and pull specific searches depending on what time/date or game sort it is about.
 Furthermore, should need be a event can be submitted in form of a vote from participating members, should enough members vote for an event, it will be saved. If not, discarded.
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/8e80dc47-eeee-4e3b-979b-91a8e0ac966a)
+
 
 
 UPDATE:
