@@ -1,4 +1,4 @@
-### paps-bot
+# paps-bot
 Discord bot for planning pen-and-paper-shenanigans and more.
 
 Creating an organising events like in-person pen-and-paper gaming sessions can be a pain, so while chatting and trying to organise sessions over discord a thought occoured:"Why not have a bot for that?!"
