@@ -9,10 +9,9 @@ Currently the main feature of paps-bot, is incorporating the discord bot API to 
 
 I learned a great deal during this endavour, it was a first dive into asynchronous python programming, and it was a trip to figure out. 
 
-Paps-bot using asynchronous commands and the discord-api to listen in on a assigned channel for specific prompts and formats.
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/89365777-afec-45fe-ae97-0927c075db2b)
 
----
+
 
 
 Then paps bot handles the formatting and submitting of the event to a postgresSQL database
@@ -22,9 +21,16 @@ Then paps bot handles the formatting and submitting of the event to a postgresSQ
 ## Examples of commands
 It's even possible to submit a search query and pull specific searches depending on what time/date or game sort it is about. Delete, and edit!
 
+```/list-events  - Lists events, searchable with prompts```
+
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/e666af32-df25-4db9-b4b1-eb183c6e9590)
 
+```/delete-event - deletes event by id```
+
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/8fad4fc7-131f-4ff8-bdd1-89debe64b169)
+
+
+```/edit-event - edit event by id and new content```
 
 ![image](https://github.com/DanishKodeMonkey/paps-bot/assets/121358075/414b81d9-f74b-4980-88cd-6f3e6e7b5fb4)
 
